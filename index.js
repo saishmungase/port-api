@@ -7,7 +7,7 @@ import { Redis } from "@upstash/redis";
 dotenv.config();
 
 
-const whitelist = ["http://localhost:5173", "https://saish.tech"]
+const whitelist = ["http://localhost:5173", "https://saish.tech", "https://www.saish.tech"]
 
 const app = express();
 const corsOptions = {
