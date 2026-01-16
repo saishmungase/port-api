@@ -6,7 +6,6 @@ import { Redis } from "@upstash/redis";
 
 dotenv.config();
 
-
 const whitelist = ["http://localhost:5173", "https://saish.tech", "https://www.saish.tech"]
 
 const app = express();
@@ -23,8 +22,6 @@ const corsOptions = {
 }
 
 app.use(cors(corsOptions));
-
-app.use(cors());
 app.use(express.json());
 
 const START_DATE = "2026-01-01";
