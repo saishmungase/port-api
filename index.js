@@ -50,13 +50,16 @@ app.get("/github", async (req, res) => {
     console.log(e.message || e);
   }
 
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
   try {
     const query = `
       query($username: String!) {
         user(login: $username) {
           contributionsCollection(
             from: "${START_DATE}T00:00:00Z"
-            to: "${new Date().toISOString()}"
+            to: "${endOfToday.toISOString()}"
           ) {
             contributionCalendar {
               weeks {
@@ -89,6 +92,7 @@ app.get("/github", async (req, res) => {
         .contributionCalendar.weeks;
 
     const data = [];
+    console.log(weeks)
     weeks.forEach((week) => {
       week.contributionDays.forEach((day) => {
         data.push({
@@ -101,7 +105,7 @@ app.get("/github", async (req, res) => {
     res.json(data);
     console.log("GITHUB:- Response from the API")
     await redis.set("github", JSON.stringify(data), {
-      EX : 600
+      ex : 600
     })
 
   } catch (err) {
@@ -172,7 +176,7 @@ app.get("/leetcode", async (req, res) => {
     res.json(result);
     console.log("LEETCODE:- Response From API")
     await redis.set("leetcode", JSON.stringify(result), {
-      EX : 600
+      ex : 600
     })
   } catch (err) {
     console.error(err.message);
@@ -241,7 +245,7 @@ app.get("/dsa", async (req, res) => {
   res.json(data);
   console.log("DSA:- Response from the API")
   await redis.set("dsa", JSON.stringify(data), {
-    EX : 600
+    ex : 600
   })
 
 })
