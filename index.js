@@ -115,24 +115,26 @@ app.get("/github", async (req, res) => {
 });
 
 app.get("/leetcode", async (req, res) => {
+  const USERNAME = "saishmungase";
+  const CURRENT_YEAR = new Date().getFullYear();
 
-  try{
-    const data = await redis.get("leetcode");
-    if(!data) throw Error("No LeetCode Data Found!")
-    res.json(data);
-    console.log("LEETCODE:- Response From Redis")
-    return;
-  }
-  catch(e){
-    console.log(e.message || e);
+  try {
+    const cachedData = await redis.get("leetcode");
+    if (cachedData) {
+      console.log("LEETCODE:- Response From Redis");
+      return res.json(typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData);
+    }
+  } catch (e) {
+    console.log("Redis Error:", e.message || e);
   }
 
   try {
     const query = `
-      query($username: String!) {
-        recentAcSubmissionList(username: $username, limit: 1000) {
-          timestamp
-          statusDisplay
+      query userProfileCalendar($username: String!, $year: Int!) {
+        matchedUser(username: $username) {
+          userCalendar(year: $year) {
+            submissionCalendar
+          }
         }
       }
     `;
@@ -141,46 +143,43 @@ app.get("/leetcode", async (req, res) => {
       "https://leetcode.com/graphql",
       {
         query,
-        variables: { username: username },
+        variables: { username: USERNAME, year: CURRENT_YEAR },
       },
       { headers: { "Content-Type": "application/json" } }
     );
 
-    const submissions = response.data.data.recentAcSubmissionList;
+    const calendarData = JSON.parse(
+      response.data.data.matchedUser.userCalendar.submissionCalendar
+    );
 
-    const start = new Date(START_DATE);
-    const today = new Date();
-
-    const map = {};
-
-    submissions.forEach((sub) => {
-      if (sub.statusDisplay !== "Accepted") return;
-
-      const date = new Date(sub.timestamp * 1000)
-        .toISOString()
-        .split("T")[0];
-
-      if (!map[date]) map[date] = 0;
-      map[date]++;
+    const submissionMap = new Map();
+    Object.entries(calendarData).forEach(([timestamp, count]) => {
+      const dateKey = new Date(parseInt(timestamp) * 1000).toISOString().split("T")[0];
+      submissionMap.set(dateKey, count);
     });
 
     const result = [];
+    const start = new Date(START_DATE); 
+    const today = new Date();
+
     for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split("T")[0];
       result.push({
         date: dateStr,
-        count: map[dateStr] || 0,
+        count: submissionMap.get(dateStr) || 0,
       });
     }
 
-    res.json(result);
-    console.log("LEETCODE:- Response From API")
-    await redis.set("leetcode", JSON.stringify(result), {
-      ex : 600
-    })
+    console.log("LEETCODE:- Response From API");
+    await redis.set("leetcode", JSON.stringify(result), { ex: 600 });
+    
+    return res.json(result);
+
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: "Failed to fetch LeetCode data" });
+    console.error("API Error:", err.message);
+    if (!res.headersSent) {
+      return res.status(500).json({ error: "Failed to fetch LeetCode data" });
+    }
   }
 });
 
